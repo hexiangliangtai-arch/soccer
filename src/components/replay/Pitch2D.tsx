@@ -4,7 +4,7 @@ import { PlayerMarker } from './PlayerMarker'
 
 export function Pitch2D({frame}:{frame:ReplayFrame}) {
   return <div className="pitch-shell">
-    <div className="pitch-2d" role="img" aria-label="2Dサッカーピッチ">
+    <div className={`pitch-2d${frame.continuous?' continuous':''}`} role="img" aria-label="2Dサッカーピッチ">
       <div className="pitch-halfway"/><div className="pitch-center-circle"/><div className="pitch-center-dot"/>
       <div className="penalty-area penalty-left"/><div className="penalty-area penalty-right"/>
       <div className="goal-area goal-area-left"/><div className="goal-area goal-area-right"/>

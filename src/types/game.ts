@@ -79,6 +79,8 @@ export type MatchTeam = 'home' | 'away'
 export type MatchEventType =
   | 'matchStart' | 'halfTime' | 'matchEnd' | 'pass' | 'dribble'
   | 'chance' | 'shoot' | 'goal' | 'save' | 'foul' | 'counter' | 'pressure'
+  | 'throughPass' | 'cross' | 'intercept' | 'tackle' | 'looseBall'
+  | 'recover' | 'clear' | 'miss' | 'block'
   | 'penaltyShootout'
 
 export interface PitchPosition { x: number; y: number }
@@ -111,6 +113,25 @@ export interface OpponentTeam {
 
 export interface MatchScore { home: number; away: number }
 
+// Player identity and team are stored once on MatchState/MatchRecord. Each frame
+// only stores [x, y, flags] in that fixed roster order to keep localStorage small.
+export type MatchFramePlayer = [x:number,y:number,flags:number]
+export type MatchFrameBall = [x:number,y:number,ownerIndex:number,isLoose:0|1]
+
+export interface MatchFrame {
+  frameIndex: number
+  timeSec: number
+  minute: number
+  second: number
+  half: Exclude<MatchHalf,'fullTime'>
+  homeScore: number
+  awayScore: number
+  possessionTeam: MatchTeam | null
+  ball: MatchFrameBall
+  players: MatchFramePlayer[]
+  eventIds?: string[]
+}
+
 export interface MatchState {
   id: string
   seed: number
@@ -125,6 +146,9 @@ export interface MatchState {
   shootoutWinner?: MatchTeam
   formationId?: FormationId
   lineupAssignments?: LineupAssignment[]
+  frames?: MatchFrame[]
+  framePlayerIds?: string[]
+  framePlayerTeams?: MatchTeam[]
 }
 
 export interface MatchRecord {
@@ -144,6 +168,9 @@ export interface MatchRecord {
   seed?: number
   formationId?: FormationId
   lineupAssignments?: LineupAssignment[]
+  frames?: MatchFrame[]
+  framePlayerIds?: string[]
+  framePlayerTeams?: MatchTeam[]
 }
 
 export interface LineupSnapshotPlayer {
@@ -174,6 +201,11 @@ export interface ReplayFrame {
   targetPlayerId?: string
   assistPlayerId?: string
   team: MatchTeam
+  homeScore?: number
+  awayScore?: number
+  possessionTeam?: MatchTeam | null
+  eventIds?: string[]
+  continuous?: boolean
 }
 
 export interface GoalRecord {

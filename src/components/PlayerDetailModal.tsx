@@ -16,7 +16,7 @@ export function PlayerDetailModal({player,onClose}:{player:Player;onClose:()=>vo
       <header><em className={`pos ${player.position}`}>{player.position}</em><div><span>{player.grade}年生</span><h2 id="player-detail-title">{player.name}</h2></div></header>
       <div className="player-detail-grid">
         <RadarChart player={player}/>
-        <div className="detail-abilities">{abilities.map(({key,label})=><div key={key}><span>{label}</span><AbilityRankBadge value={player[key]}/></div>)}</div>
+        <div className="detail-abilities">{abilities.map(({key,label})=><div key={key}><span>{label}</span><span className="ability-value"><AbilityRankBadge value={player[key]}/><small>{Math.round(player[key])}</small></span></div>)}</div>
       </div>
       <div className="detail-condition"><div><span>コンディション</span><b>{player.condition}</b><StatBar value={player.condition} type="condition"/></div><div><span>疲労</span><b>{player.fatigue}</b><StatBar value={player.fatigue} type="fatigue"/></div></div>
       <dl className="detail-profile"><div><dt>怪我状態</dt><dd>{player.injury.status==='healthy'?'健康':`怪我・復帰まで${player.injury.recoveryWeeks}週`}</dd></div><div><dt>成長タイプ</dt><dd>{growthLabels[player.growthType]}</dd></div></dl>

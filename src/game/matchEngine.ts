@@ -1,6 +1,8 @@
 import { tactics } from '../data/tactics'
 import type { FormationId, LineupAssignment, MatchEvent, MatchHalf, MatchState, OpponentTeam, Player, TacticId } from '../types/game'
 import { createCommentary } from './eventCommentary'
+import { simulateAiHalf } from './aiMatchEngine'
+import { simulateContinuousHalf, type ContinuousHalfResult } from './continuousMatchEngine'
 import { generateAttackSequence } from './matchEventGenerator'
 import { createSeededRandom, randomBetween, randomInt } from './random'
 
@@ -45,25 +47,38 @@ export function simulateHalf(match: MatchState, allPlayers: Player[], tacticId: 
   const home = teamMetrics(players,tacticId)
   const opponent = match.opponent.strength
   const possession = Math.max(0.3,Math.min(0.7, 0.5 + (home.control-opponent)/180))
-  const sequenceCount = randomInt(random,7,10)
-  const additions: MatchEvent[] = []
-  let sequence = match.events.length
-  const minutes = Array.from({length:sequenceCount},()=>randomInt(random,startMinute,endMinute)).sort((a,b)=>a-b)
-  minutes.forEach((minute) => {
-    const team = random.next() < possession ? 'home' : 'away'
-    const attackValue = team === 'home' ? home.attack : opponent * randomBetween(random,0.92,1.08)
-    const defenseValue = team === 'home' ? opponent : home.defense
-    const chance = Math.max(0.08,Math.min(0.46,0.2 + (attackValue-defenseValue)/175))
-    const generated = generateAttackSequence({match,players,half,minute,team,random,tactic:home.tactic},sequence,chance)
-    additions.push(...generated)
-    sequence += generated.length
-  })
-  const boundaryType = half === 'first' ? 'halfTime' : 'matchEnd'
-  const boundaryMinute = half === 'first' ? 45 : 90
-  additions.push({
-    id:`${match.id}-e${sequence}`, matchId:match.id, sequence, minute:boundaryMinute, second:0, half,
-    type:boundaryType, team:'home', durationMs:boundaryType==='matchEnd'?1800:1500, description:createCommentary({type:boundaryType,half,minute:boundaryMinute,team:'home',opponentName:match.opponent.name}),
-  })
+  let additions: MatchEvent[]
+  let continuous: ContinuousHalfResult | undefined
+  try {
+    continuous=simulateContinuousHalf(match,allPlayers,tacticId)
+    additions=continuous.events
+  } catch {
+    // Preserve completed seasons if the experimental sequence layer cannot simulate this match.
+    try {
+      additions=simulateAiHalf(match,allPlayers,tacticId)
+    } catch {
+      // Last-resort compatibility path for old saves and malformed AI state.
+      const sequenceCount = randomInt(random,7,10)
+      additions=[]
+      let sequence = match.events.length
+      const minutes = Array.from({length:sequenceCount},()=>randomInt(random,startMinute,endMinute)).sort((a,b)=>a-b)
+      minutes.forEach((minute) => {
+        const team = random.next() < possession ? 'home' : 'away'
+        const attackValue = team === 'home' ? home.attack : opponent * randomBetween(random,0.92,1.08)
+        const defenseValue = team === 'home' ? opponent : home.defense
+        const chance = Math.max(0.08,Math.min(0.46,0.2 + (attackValue-defenseValue)/175))
+        const generated = generateAttackSequence({match,players,half,minute,team,random,tactic:home.tactic},sequence,chance)
+        additions.push(...generated)
+        sequence += generated.length
+      })
+      const boundaryType = half === 'first' ? 'halfTime' : 'matchEnd'
+      const boundaryMinute = half === 'first' ? 45 : 90
+      additions.push({
+        id:`${match.id}-e${sequence}`, matchId:match.id, sequence, minute:boundaryMinute, second:0, half,
+        type:boundaryType, team:'home', durationMs:boundaryType==='matchEnd'?1800:1500, description:createCommentary({type:boundaryType,half,minute:boundaryMinute,team:'home',opponentName:match.opponent.name}),
+      })
+    }
+  }
   const events = [...match.events,...additions]
   const score = events.reduce((value,item) => {
     if (item.type === 'goal') value[item.team]++
@@ -72,15 +87,21 @@ export function simulateHalf(match: MatchState, allPlayers: Player[], tacticId: 
   let shootoutWinner = match.shootoutWinner
   if (half === 'second' && match.roundLabel.startsWith('県大会') && score.home === score.away) {
     shootoutWinner = random.next() < Math.max(0.35,Math.min(0.65,0.5+(home.tactic.control-1)*0.2)) ? 'home' : 'away'
-    events.push({
+    const shootoutEvent:MatchEvent={
       id:`${match.id}-e${events.length}`, matchId:match.id, sequence:events.length, minute:90, second:0, half:'fullTime',
       type:'penaltyShootout', team:shootoutWinner,
       durationMs:1800,
       description:`90分を終えて同点。PK戦の末、${shootoutWinner==='home'?'青葉高校':match.opponent.name}が勝ち上がりました。`,
-    })
+    }
+    events.push(shootoutEvent)
+    const finalFrame=continuous?.frames[continuous.frames.length-1]
+    if(finalFrame)finalFrame.eventIds=[...(finalFrame.eventIds??[]),shootoutEvent.id]
   }
   return {
     ...match, events, score, shootoutWinner,
+    frames:continuous?[...(match.frames??[]),...continuous.frames]:match.frames,
+    framePlayerIds:continuous?.framePlayerIds??match.framePlayerIds,
+    framePlayerTeams:continuous?.framePlayerTeams??match.framePlayerTeams,
     secondHalfTactic: half === 'second' ? tacticId : match.secondHalfTactic,
     phase: half === 'first' ? 'halfTime' : 'finished',
   }

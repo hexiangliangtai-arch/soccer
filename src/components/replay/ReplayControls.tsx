@@ -5,6 +5,6 @@ export function ReplayControls({isPlaying,isAtEnd,speed,onToggle,onNext,onRestar
     <button className="replay-primary" onClick={onToggle} disabled={isAtEnd&&!isPlaying}>{isPlaying?'一時停止':'再生'}</button>
     <button onClick={onNext} disabled={isAtEnd}>次のイベント</button>
     <button onClick={onRestart}>最初から</button>
-    <label>速度<select value={speed} onChange={(event)=>onSpeedChange(Number(event.target.value))}><option value={0.5}>0.5x</option><option value={1}>1x</option><option value={2}>2x</option></select></label>
+    <label>速度<select value={speed} onChange={(event)=>onSpeedChange(Number(event.target.value))}><option value={0.5}>0.5x</option><option value={1}>1x</option><option value={2}>2x</option><option value={4}>4x</option></select></label>
   </div>
 }

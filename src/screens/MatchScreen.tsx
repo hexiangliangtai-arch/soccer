@@ -26,4 +26,4 @@ export function MatchScreen({onReplay,onOpenTactics}:{onReplay?:(matchId:string)
 }
 
 function TacticPicker({value,onChange}:{value:TacticId;onChange:(id:TacticId)=>void}) { return <div className="tactic-grid">{tactics.map((item)=><button className={value===item.id?'active':''} onClick={()=>onChange(item.id)} key={item.id}><span>{item.shortName}</span><b>{item.name}</b><small>{item.description}</small></button>)}</div> }
-const eventIcon:Record<string,string>={goal:'GOAL',shoot:'蹴',save:'止',chance:'!',dribble:'走',counter:'速',pressure:'圧',foul:'笛',halfTime:'HT',matchEnd:'FT',matchStart:'KO',penaltyShootout:'PK'}
+const eventIcon:Record<string,string>={goal:'GOAL',shoot:'蹴',save:'止',miss:'外',block:'壁',chance:'!',dribble:'走',counter:'速',pressure:'圧',throughPass:'縦',cross:'横',intercept:'読',tackle:'奪',looseBall:'零',recover:'拾',clear:'逃',foul:'笛',halfTime:'HT',matchEnd:'FT',matchStart:'KO',penaltyShootout:'PK'}

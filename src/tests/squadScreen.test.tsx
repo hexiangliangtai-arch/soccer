@@ -23,6 +23,8 @@ describe('SquadScreen player details',()=>{
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByLabelText(`${player.name}の能力六角形グラフ`)).toBeInTheDocument()
     expect(container.querySelectorAll('.detail-abilities .rank-badge')).toHaveLength(6)
+    expect(container.querySelectorAll('.detail-abilities .ability-value>small')).toHaveLength(6)
+    expect(container.querySelector('.detail-abilities .ability-value>small')).toHaveTextContent(String(Math.round(player.attack)))
     expect(container.querySelector('.detail-abilities .stat-bar')).not.toBeInTheDocument()
     expect(screen.getByText('出場試合')).toBeInTheDocument()
     expect(screen.queryByLabelText(`${player.name}をスタメンから外す`)).not.toBeInTheDocument()

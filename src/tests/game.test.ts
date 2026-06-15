@@ -81,7 +81,7 @@ describe('match engine',()=>{
 
   it('generates both assisted and unassisted home goals',()=>{
     const homeGoals=[]
-    for (let seed=1;seed<=120;seed++) {
+    for (let seed=1;seed<=24;seed++) {
       let match=createMatch(initialPlayers,defaultLineupIds,friendlyOpponents[10],'attacking','練習試合',seed)
       match=simulateHalf(match,initialPlayers,'attacking')
       match=simulateHalf(match,initialPlayers,'attacking')

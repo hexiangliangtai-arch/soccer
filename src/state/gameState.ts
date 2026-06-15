@@ -9,6 +9,8 @@ import { createSeededRandom } from '../game/random'
 import { applyTraining } from '../game/trainingEngine'
 import type { FormationId, GameState, GoalRecord, MatchRecord, Player, TacticId, TrainingId } from '../types/game'
 
+const MAX_CONTINUOUS_REPLAY_RECORDS=3
+
 export type GameAction =
   | { type:'TOGGLE_LINEUP'; playerId:string }
   | { type:'SET_LINEUP'; lineupIds:string[] }
@@ -53,7 +55,14 @@ function makeRecord(state: GameState): MatchRecord | null {
     events:match.events, scorers, goals, homeLineupSnapshot, awayLineupSnapshot:createAwayLineupSnapshot(),
     firstHalfTactic:match.firstHalfTactic, secondHalfTactic:match.secondHalfTactic, seed:match.seed,
     formationId:match.formationId??state.selectedFormation,lineupAssignments:(match.lineupAssignments??state.lineupAssignments).map((assignment)=>({...assignment})),
+    frames:match.frames,framePlayerIds:match.framePlayerIds,framePlayerTeams:match.framePlayerTeams,
   }
+}
+
+function retainRecentContinuousReplays(records:MatchRecord[]) {
+  return records.map((record,index)=>index<MAX_CONTINUOUS_REPLAY_RECORDS?record:{
+    ...record,frames:undefined,framePlayerIds:undefined,framePlayerTeams:undefined,
+  })
 }
 
 function applyMatchStats(players: Player[], record: MatchRecord, lineupIds: string[]) {
@@ -98,6 +107,9 @@ export function normalizeLoadedState(state: GameState): GameState {
     matchHistory:state.matchHistory.map((record)=>({
       ...record,
       events:record.events??[],
+      frames:Array.isArray(record.frames)?record.frames:undefined,
+      framePlayerIds:Array.isArray(record.framePlayerIds)?record.framePlayerIds:undefined,
+      framePlayerTeams:Array.isArray(record.framePlayerTeams)?record.framePlayerTeams:undefined,
       goals:record.goals ?? (record.events??[]).filter((event)=>event.type==='goal').map((event)=>({
         minute:event.minute, half:event.half, team:event.team, scorerId:event.playerId, assistPlayerId:event.assistPlayerId,
         scorerName:state.players.find((player)=>player.id===event.playerId)?.name ?? (event.team==='home'?'青葉高校':record.opponent),
@@ -175,7 +187,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...nextState,
         players:applyMatchStats(fatiguedPlayers,record,finished.lineupIds),
         weekActionCompleted:true,
-        matchHistory:[record,...state.matchHistory],
+        matchHistory:retainRecentContinuousReplays([record,...state.matchHistory]),
         logs:[`${record.roundLabel} ${scoreText}。${record.result==='win'?'勝利！':record.result==='draw'?'引き分け。':'敗戦。'}`,...state.logs],
       }
       return state.week === 40 ? completed : advanceWeek(completed,finished.seed+100000,true)

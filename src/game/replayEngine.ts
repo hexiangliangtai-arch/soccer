@@ -7,6 +7,8 @@ const defaultDuration: Record<MatchEvent['type'],number> = {
   matchStart:1400, halfTime:1500, matchEnd:1800, penaltyShootout:1800,
   pass:900, dribble:1100, chance:1200, shoot:1000, goal:1800, save:1300,
   foul:1200, counter:950, pressure:900,
+  throughPass:950,cross:1100,intercept:1000,tackle:1000,looseBall:800,
+  recover:850,clear:1000,miss:1000,block:1100,
 }
 
 export function sortEventsForReplay(events: MatchEvent[] = []) {
@@ -54,7 +56,7 @@ export function createInitialPlayerPositions(record: MatchRecord,players: Player
 }
 
 function fallbackAwayPlayer(event: MatchEvent,players: ReplayPlayer[]) {
-  const desired: Position = event.type==='save'?'GK':event.type==='pass'||event.type==='pressure'?'MF':'FW'
+  const desired: Position = event.type==='save'?'GK':['pass','throughPass','cross','pressure','intercept','tackle','recover','clear'].includes(event.type)?'MF':'FW'
   const candidates=players.filter((player)=>player.team==='away'&&player.position===desired)
   return candidates[event.sequence%Math.max(1,candidates.length)] ?? players.find((player)=>player.team==='away')
 }
@@ -66,7 +68,7 @@ function resolvePlayerId(id: string|undefined,event: MatchEvent,players: ReplayP
 
 function eventBallPosition(event: MatchEvent,previous: PitchPosition) {
   if (event.type==='matchStart'||event.type==='halfTime'||event.type==='matchEnd'||event.type==='penaltyShootout') return center
-  const movingToTarget=['pass','dribble','counter','chance','shoot','goal','save'].includes(event.type)
+  const movingToTarget=['pass','throughPass','cross','dribble','counter','chance','shoot','goal','save','clear','miss','block'].includes(event.type)
   const point=movingToTarget?(event.targetPosition??event.position):(event.position??event.targetPosition)
   return point?{x:clamp(point.x),y:clamp(point.y)}:previous
 }
@@ -92,7 +94,45 @@ export function normalizeEventToFrame(event: MatchEvent,previousFrame: ReplayFra
   }
 }
 
+function createContinuousReplayFrames(record:MatchRecord,players:Player[]):ReplayFrame[] {
+  const storedFrames=record.frames??[]
+  const playerIds=record.framePlayerIds??[]
+  const playerTeams=record.framePlayerTeams??[]
+  if (!storedFrames.length||playerIds.length!==22||playerTeams.length!==playerIds.length) return []
+
+  const initialPlayers=createInitialPlayerPositions(record,players)
+  const initialById=new Map(initialPlayers.map((player)=>[player.id,player]))
+  const eventsById=new Map((record.events??[]).map((event)=>[event.id,event]))
+  let latestEvent=sortEventsForReplay(record.events??[]).find((event)=>event.type==='matchStart')
+
+  return [...storedFrames].sort((a,b)=>a.frameIndex-b.frameIndex).map((stored)=>{
+    const frameEvents=(stored.eventIds??[]).map((id)=>eventsById.get(id)).filter((event):event is MatchEvent=>Boolean(event))
+    latestEvent=frameEvents.at(-1)??latestEvent
+    const ownerId=stored.ball[2]>=0?playerIds[stored.ball[2]]:undefined
+    const replayPlayers=stored.players.map((point,index):ReplayPlayer=>{
+      const id=playerIds[index]??`unknown-${index}`
+      const initial=initialById.get(id)
+      const team=playerTeams[index]??(id.startsWith('away-')?'away':'home')
+      return {
+        id,name:initial?.name??(team==='home'?'青葉高校選手':`相手選手${index+1}`),
+        position:initial?.position??'MF',grade:initial?.grade,team,
+        x:clamp(point[0]),y:clamp(point[1]),label:initial?.label??(initial?.position==='GK'?'GK':String(index+1)),
+      }
+    })
+    return {
+      sequence:stored.frameIndex,minute:stored.minute,second:stored.second,half:stored.half,
+      eventType:latestEvent?.type??'matchStart',description:latestEvent?.description??'試合が進んでいます。',
+      durationMs:50,ballPosition:{x:clamp(stored.ball[0]),y:clamp(stored.ball[1])},players:replayPlayers,
+      activePlayerId:ownerId??latestEvent?.playerId,targetPlayerId:latestEvent?.targetPlayerId,assistPlayerId:latestEvent?.assistPlayerId,
+      team:latestEvent?.team??stored.possessionTeam??'home',homeScore:stored.homeScore,awayScore:stored.awayScore,
+      possessionTeam:stored.possessionTeam,eventIds:stored.eventIds??[],continuous:true,
+    }
+  })
+}
+
 export function createReplayFrames(record: MatchRecord,players: Player[]): ReplayFrame[] {
+  const continuous=createContinuousReplayFrames(record,players)
+  if (continuous.length) return continuous
   const initialPlayers=createInitialPlayerPositions(record,players)
   return sortEventsForReplay(record.events??[]).reduce<ReplayFrame[]>((frames,event)=>{
     frames.push(normalizeEventToFrame(event,frames.at(-1),initialPlayers))
