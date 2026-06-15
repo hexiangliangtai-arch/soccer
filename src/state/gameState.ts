@@ -19,6 +19,7 @@ export type GameAction =
   | { type:'SET_TEAM_TACTIC'; tacticId:TacticId }
   | { type:'TRAIN'; trainingId:TrainingId; seed:number }
   | { type:'START_MATCH'; tacticId:TacticId; seed:number }
+  | { type:'WATCH_MATCH'; tacticId:TacticId; seed:number }
   | { type:'SIMULATE_FIRST_HALF' }
   | { type:'SIMULATE_SECOND_HALF'; tacticId:TacticId }
   | { type:'CONTINUE_AFTER_MATCH' }
@@ -170,6 +171,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const alreadyPlayed = state.matchHistory.some((record)=>record.week===state.week&&record.opponent===opponent.name&&record.roundLabel===roundLabel)
       if (alreadyPlayed) return state
       return { ...state, currentMatch:createMatch(state.players,state.lineupIds,opponent,action.tacticId,roundLabel,action.seed,{formationId:state.selectedFormation,lineupAssignments:state.lineupAssignments}), logs:[`${roundLabel}、${opponent.name}戦のメンバーを送り出した。`,...state.logs] }
+    }
+    case 'WATCH_MATCH': {
+      const started=gameReducer(state,{type:'START_MATCH',tacticId:action.tacticId,seed:action.seed})
+      if(started===state||started.currentMatch?.phase!=='preMatch')return state
+      return gameReducer(started,{type:'SIMULATE_FIRST_HALF'})
     }
     case 'SIMULATE_FIRST_HALF': {
       if (!state.currentMatch || state.currentMatch.phase !== 'preMatch') return state

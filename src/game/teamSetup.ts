@@ -2,6 +2,7 @@ import { createAssignments, getFormation } from '../data/formations'
 import type { MatchPlayerState, PlayerRole } from '../types/aiMatch'
 import type { FormationId, FormationSlot, MatchState, MatchTeam, Player, Position } from '../types/game'
 import { clamp, mirrorPointForAway } from './pitchMath'
+import { createPlayerZone } from './zoneEngine'
 
 const awayFormation: Array<{id:string;name:string;position:Position;role:PlayerRole;x:number;y:number}> = [
   {id:'away-gk-1',name:'相手GK',position:'GK',role:'GK',x:8,y:50},
@@ -30,17 +31,22 @@ export function roleFromSlot(slot: FormationSlot): PlayerRole {
   return 'ST'
 }
 
-function toMatchPlayer(player: Player,team: MatchTeam,role: PlayerRole,x:number,y:number): MatchPlayerState {
+function halfPoint(x:number,y:number,half:'first'|'second') {return half==='first'?{x,y}:{x:100-x,y}}
+
+function toMatchPlayer(player: Player,team: MatchTeam,role: PlayerRole,x:number,y:number,half:'first'|'second'): MatchPlayerState {
+  const point=halfPoint(x,y,half);x=point.x;y=point.y
+  const baseZone=createPlayerZone(role,{x,y})
   return {
     playerId:player.id,name:player.name,team,position:player.position,role,
     x,y,baseX:x,baseY:y,targetX:x,targetY:y,hasBall:false,vx:0,vy:0,decisionCooldown:0,
     actionState:role==='GK'?'goalkeeping':'returnToShape',reactionCooldown:0,
+    baseZone,currentZone:baseZone,
     attack:player.attack,defense:player.defense,speed:player.speed,stamina:player.stamina,
     technique:player.technique,mental:player.mental,condition:player.condition,fatigue:player.fatigue,currentStamina:100,
   }
 }
 
-function homePlayers(match: MatchState,players: Player[]) {
+function homePlayers(match: MatchState,players: Player[],half:'first'|'second') {
   const formationId:FormationId=match.formationId??'4-4-2'
   const formation=getFormation(formationId)
   const lineup=match.lineupIds.map((id)=>players.find((player)=>player.id===id)).filter((player):player is Player=>Boolean(player))
@@ -54,7 +60,7 @@ function homePlayers(match: MatchState,players: Player[]) {
       ?? lineup.find((item)=>!used.has(item.id))
     if (!player) return null
     used.add(player.id)
-    return toMatchPlayer(player,'home',roleFromSlot(slot),slot.x,slot.y)
+    return toMatchPlayer(player,'home',roleFromSlot(slot),slot.x,slot.y,half)
   }).filter((player):player is MatchPlayerState=>Boolean(player))
   if (result.length!==11) throw new Error('AI試合用のhome選手を11人配置できません')
   return result
@@ -70,18 +76,21 @@ function opponentAbilities(strength:number,position:Position) {
   return values
 }
 
-function awayPlayers(match: MatchState): MatchPlayerState[] {
+function awayPlayers(match: MatchState,half:'first'|'second'): MatchPlayerState[] {
   return awayFormation.map((item)=>{
-    const point=mirrorPointForAway(item)
+    const firstHalfPoint=mirrorPointForAway(item)
+    const point=halfPoint(firstHalfPoint.x,firstHalfPoint.y,half)
+    const baseZone=createPlayerZone(item.role,point)
     return {
       playerId:item.id,name:item.name,team:'away',position:item.position,role:item.role,
       x:point.x,y:point.y,baseX:point.x,baseY:point.y,targetX:point.x,targetY:point.y,hasBall:false,vx:0,vy:0,decisionCooldown:0,
       actionState:item.role==='GK'?'goalkeeping':'returnToShape',reactionCooldown:0,
+      baseZone,currentZone:baseZone,
       ...opponentAbilities(match.opponent.strength,item.position),condition:100,fatigue:0,currentStamina:100,
     }
   })
 }
 
-export function createAiMatchPlayers(match: MatchState,players: Player[]) {
-  return [...homePlayers(match,players),...awayPlayers(match)]
+export function createAiMatchPlayers(match: MatchState,players: Player[],half:'first'|'second'='first') {
+  return [...homePlayers(match,players,half),...awayPlayers(match,half)]
 }

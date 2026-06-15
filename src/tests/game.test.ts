@@ -94,6 +94,19 @@ describe('match engine',()=>{
 })
 
 describe('season reducer',()=>{
+  it('prepares only the first half before live watching and saves the result after halftime tactics',()=>{
+    const base={...createInitialState(),week:10}
+    const watching=gameReducer(base,{type:'WATCH_MATCH',tacticId:'possession',seed:4321})
+    expect(watching.currentMatch?.phase).toBe('halfTime')
+    expect(watching.matchHistory).toHaveLength(0)
+    expect(watching.week).toBe(10)
+    const finished=gameReducer(watching,{type:'SIMULATE_SECOND_HALF',tacticId:'counter'})
+    expect(finished.currentMatch?.phase).toBe('finished')
+    expect(finished.currentMatch?.secondHalfTactic).toBe('counter')
+    expect(finished.matchHistory).toHaveLength(1)
+    expect(finished.week).toBe(11)
+  })
+
   it('advances automatically after one training session',()=>{
     const initial=createInitialState()
     const trained=gameReducer(initial,{type:'TRAIN',trainingId:'meeting',seed:1})

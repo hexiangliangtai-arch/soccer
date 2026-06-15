@@ -208,6 +208,9 @@ export interface ReplayFrame {
   continuous?: boolean
 }
 
+export type ReplayPaceMode = 'standard' | 'fast' | 'highlights'
+export type ReplayViewMode = 'liveWatch' | 'replay'
+
 export interface GoalRecord {
   minute: number
   half: MatchHalf

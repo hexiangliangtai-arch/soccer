@@ -40,9 +40,9 @@ function weightedAction(weights:Array<{type:AiDecision['type'];weight:number}>,r
 export function decideBallAction(owner:MatchPlayerState,state:AiMatchState,random:RandomSource):AiDecision {
   const tacticId=tacticForTeam(owner.team,state.tacticId)
   const profile=getAiTacticProfile(tacticId)
-  const goalDistance=distance(owner,getGoalPosition(owner.team))
+  const goalDistance=distance(owner,getGoalPosition(owner.team,state.half))
   const nearbyOpponents=state.players.filter((player)=>player.team!==owner.team&&distance(player,owner)<11).length
-  const target=choosePassTarget(owner,state.players,tacticId,random)
+  const target=choosePassTarget(owner,state.players,tacticId,random,state.half)
   const defensiveRole=['GK','CB','FB','WB','DM'].includes(owner.role)
   const shootBase=goalDistance<19?2.6:goalDistance<30?1.25:goalDistance<40?.38:.05
   const passBase=(target?1.1:.1)+nearbyOpponents*.32+(defensiveRole?.32:0)
@@ -53,13 +53,13 @@ export function decideBallAction(owner:MatchPlayerState,state:AiMatchState,rando
     {type:'shoot',weight:shootBase*profile.shootBias*(.72+owner.attack/180)},
   ],random)
   if (type==='pass'&&target) return {type,playerId:owner.playerId,targetPlayerId:target.playerId,targetPosition:pointOf(target)}
-  if (type==='shoot') return {type,playerId:owner.playerId,targetPosition:getGoalPosition(owner.team)}
-  return {type:'dribble',playerId:owner.playerId,targetPosition:forwardDribbleTarget(owner,random,tacticId)}
+  if (type==='shoot') return {type,playerId:owner.playerId,targetPosition:getGoalPosition(owner.team,state.half)}
+  return {type:'dribble',playerId:owner.playerId,targetPosition:forwardDribbleTarget(owner,random,tacticId,state.half)}
 }
 
-function attackTarget(player:MatchPlayerState,ball:PitchPosition,tacticId:TacticId):PitchPosition {
+function attackTarget(player:MatchPlayerState,ball:PitchPosition,tacticId:TacticId,state:AiMatchState):PitchPosition {
   const profile=getAiTacticProfile(tacticId)
-  const direction=getAttackDirection(player.team)
+  const direction=getAttackDirection(player.team,state.half)
   let x=player.baseX+direction*profile.lineOffset
   let y=player.baseY
   if (player.role==='ST') x+=direction*(tacticId==='counter'?11:6)
@@ -71,9 +71,9 @@ function attackTarget(player:MatchPlayerState,ball:PitchPosition,tacticId:Tactic
   return {x,y}
 }
 
-function defendTarget(player:MatchPlayerState,tacticId:TacticId):PitchPosition {
+function defendTarget(player:MatchPlayerState,tacticId:TacticId,state:AiMatchState):PitchPosition {
   const profile=getAiTacticProfile(tacticId)
-  const direction=getAttackDirection(player.team)
+  const direction=getAttackDirection(player.team,state.half)
   const roleDrop=player.role==='CB'||player.role==='FB'||player.role==='DM'?4:0
   return {x:player.baseX-direction*(Math.max(0,-profile.lineOffset)+roleDrop),y:player.baseY}
 }
@@ -87,10 +87,10 @@ export function updatePlayerPositions(state:AiMatchState):MatchPlayerState[] {
     const profile=getAiTacticProfile(tacticId)
     let target:PitchPosition={x:player.baseX,y:player.baseY}
     if (player.role==='GK') target={x:player.baseX,y:Math.max(38,Math.min(62,ballPoint.y))}
-    else if (player.team===state.possessionTeam) target=player.hasBall?pointOf(player):attackTarget(player,ballPoint,tacticId)
+    else if (player.team===state.possessionTeam) target=player.hasBall?pointOf(player):attackTarget(player,ballPoint,tacticId,state)
     else if (player.playerId===presser?.playerId) target=ballPoint
-    else if (player.playerId===cover?.playerId) target={x:(ballPoint.x+getGoalPosition(state.possessionTeam).x)/2,y:(ballPoint.y+50)/2}
-    else target=defendTarget(player,tacticId)
+    else if (player.playerId===cover?.playerId) target={x:(ballPoint.x+getGoalPosition(state.possessionTeam,state.half).x)/2,y:(ballPoint.y+50)/2}
+    else target=defendTarget(player,tacticId,state)
     const pressing=player.playerId===presser?.playerId
     const movement=(.32+player.speed/190)*(pressing?profile.pressSpeed:1)*(player.currentStamina/100)
     const next=moveToward(player,target,movement)

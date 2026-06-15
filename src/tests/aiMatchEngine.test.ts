@@ -4,6 +4,7 @@ import { createAssignments,getFormation } from '../data/formations'
 import { generateDefaultLineup,generateInitialPlayers } from '../data/players'
 import { createMatch,simulateHalf } from '../game/matchEngine'
 import { createAiMatchPlayers } from '../game/teamSetup'
+import { getAttackDirection,getGoalPosition } from '../game/pitchMath'
 import type { MatchEvent,TacticId } from '../types/game'
 
 const players=generateInitialPlayers(2025)
@@ -35,6 +36,23 @@ describe('AI match setup',()=>{
       const home=states.find((player)=>player.playerId===assignment.playerId)
       expect(home).toBeDefined()
       expect({x:home?.baseX,y:home?.baseY}).toEqual({x:slot.x,y:slot.y})
+    })
+  })
+
+  it('reverses attack direction, goals and formation positions in the second half',()=>{
+    const match=createMatch(players,lineupIds,friendlyOpponents[10],'balanced','練習試合',12,{formationId:'4-3-3',lineupAssignments:assignments})
+    const first=createAiMatchPlayers(match,players,'first')
+    const second=createAiMatchPlayers(match,players,'second')
+    expect(getAttackDirection('home','first')).toBe(1)
+    expect(getAttackDirection('home','second')).toBe(-1)
+    expect(getAttackDirection('away','first')).toBe(-1)
+    expect(getAttackDirection('away','second')).toBe(1)
+    expect(getGoalPosition('home','first').x).toBe(100)
+    expect(getGoalPosition('home','second').x).toBe(0)
+    first.forEach((player)=>{
+      const reversed=second.find((item)=>item.playerId===player.playerId)!
+      expect(reversed.baseX).toBe(100-player.baseX)
+      expect(reversed.baseY).toBe(player.baseY)
     })
   })
 })

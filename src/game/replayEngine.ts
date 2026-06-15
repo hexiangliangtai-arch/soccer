@@ -135,7 +135,11 @@ export function createReplayFrames(record: MatchRecord,players: Player[]): Repla
   if (continuous.length) return continuous
   const initialPlayers=createInitialPlayerPositions(record,players)
   return sortEventsForReplay(record.events??[]).reduce<ReplayFrame[]>((frames,event)=>{
-    frames.push(normalizeEventToFrame(event,frames.at(-1),initialPlayers))
+    const frame=normalizeEventToFrame(event,frames.at(-1),initialPlayers)
+    const previous=frames.at(-1)
+    frame.homeScore=(previous?.homeScore??0)+(event.type==='goal'&&event.team==='home'?1:0)
+    frame.awayScore=(previous?.awayScore??0)+(event.type==='goal'&&event.team==='away'?1:0)
+    frames.push(frame)
     return frames
   },[])
 }

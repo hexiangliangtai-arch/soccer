@@ -1,7 +1,7 @@
 import type { MatchPlayerState, MatchWorldState } from '../types/aiMatch'
 import type { PitchPosition } from '../types/game'
 import type { RandomSource } from './random'
-import { clamp, distance, pointOf } from './pitchMath'
+import { clamp, distance, getGoalPosition, pointOf } from './pitchMath'
 import { makeBallLoose, transitionPossession } from './possessionEngine'
 
 function segmentDistance(point:PitchPosition,start:PitchPosition,end:PitchPosition) {
@@ -64,13 +64,14 @@ export function detectMovingBallContact(world:MatchWorldState,from:PitchPosition
       }
       return true
     }
-    const goalLine=world.ball.lastTouchTeam==='home'?100:0
-    const crossed=world.ball.lastTouchTeam==='home'?world.ball.x>=goalLine:world.ball.x<=goalLine
+    const shootingTeam=world.ball.lastTouchTeam??world.possessionTeam
+    const goalLine=getGoalPosition(shootingTeam,world.half).x
+    const crossed=goalLine===100?world.ball.x>=goalLine:world.ball.x<=goalLine
     if(crossed) {
       world.ball.x=goalLine
       world.ball.mode='outOfPlay';world.ball.isLoose=false
       if(world.ball.y>=43&&world.ball.y<=57) {
-        if(world.ball.lastTouchTeam==='home')world.homeScore++;else world.awayScore++
+        if(shootingTeam==='home')world.homeScore++;else world.awayScore++
       }
       return true
     }

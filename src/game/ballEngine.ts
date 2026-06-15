@@ -1,5 +1,5 @@
 import type { MatchPlayerState } from '../types/aiMatch'
-import type { MatchTeam, PitchPosition, TacticId } from '../types/game'
+import type { MatchHalf, MatchTeam, PitchPosition, TacticId } from '../types/game'
 import type { RandomSource } from './random'
 import { clamp, distance, getAttackDirection, getGoalPosition, pointOf } from './pitchMath'
 
@@ -16,8 +16,8 @@ function nearestOpponentDistance(point:PitchPosition,team:MatchTeam,players:Matc
   return Math.min(...players.filter((player)=>player.team!==team).map((player)=>distance(player,point)),30)
 }
 
-export function choosePassTarget(owner: MatchPlayerState,players: MatchPlayerState[],tacticId:TacticId,random:RandomSource) {
-  const direction=getAttackDirection(owner.team)
+export function choosePassTarget(owner: MatchPlayerState,players: MatchPlayerState[],tacticId:TacticId,random:RandomSource,half:Exclude<MatchHalf,'fullTime'>='first') {
+  const direction=getAttackDirection(owner.team,half)
   const candidates=players.filter((player)=>player.team===owner.team&&player.playerId!==owner.playerId&&player.role!=='GK')
   const scored=candidates.map((player)=>{
     const passDistance=distance(owner,player)
@@ -60,16 +60,16 @@ export function resolveDribble(player:MatchPlayerState,target:PitchPosition,play
   return random.next()<chance?{success:true}:{success:false,defender}
 }
 
-export function calculateShotSuccess(shooter:MatchPlayerState,goalkeeper:MatchPlayerState,attackMultiplier=1,defenseMultiplier=1) {
-  const goal=getGoalPosition(shooter.team)
+export function calculateShotSuccess(shooter:MatchPlayerState,goalkeeper:MatchPlayerState,attackMultiplier=1,defenseMultiplier=1,half:Exclude<MatchHalf,'fullTime'>='first') {
+  const goal=getGoalPosition(shooter.team,half)
   const goalDistance=distance(shooter,goal)
   const finishing=(shooter.attack*.58+shooter.technique*.27+shooter.mental*.15)*attackMultiplier
   const keeping=(goalkeeper.defense*.65+goalkeeper.mental*.25+goalkeeper.condition*.1)*defenseMultiplier
   return clamp(.12+(finishing-keeping)/190+(34-goalDistance)/135,.035,.58)
 }
 
-export function resolveShoot(shooter:MatchPlayerState,goalkeeper:MatchPlayerState,random:RandomSource,attackMultiplier=1,defenseMultiplier=1):ShootResolution {
-  return {goal:random.next()<calculateShotSuccess(shooter,goalkeeper,attackMultiplier,defenseMultiplier),goalkeeper}
+export function resolveShoot(shooter:MatchPlayerState,goalkeeper:MatchPlayerState,random:RandomSource,attackMultiplier=1,defenseMultiplier=1,half:Exclude<MatchHalf,'fullTime'>='first'):ShootResolution {
+  return {goal:random.next()<calculateShotSuccess(shooter,goalkeeper,attackMultiplier,defenseMultiplier,half),goalkeeper}
 }
 
 export function resolvePressure(defender:MatchPlayerState,owner:MatchPlayerState,random:RandomSource,pressingBonus=0):PressureResolution {
@@ -87,8 +87,8 @@ export function resolveLooseBall(players:MatchPlayerState[],point:PitchPosition,
   return weighted[0]?.player
 }
 
-export function forwardDribbleTarget(player:MatchPlayerState,random:RandomSource,tacticId:TacticId):PitchPosition {
-  const direction=getAttackDirection(player.team)
+export function forwardDribbleTarget(player:MatchPlayerState,random:RandomSource,tacticId:TacticId,half:Exclude<MatchHalf,'fullTime'>='first'):PitchPosition {
+  const direction=getAttackDirection(player.team,half)
   const boost=tacticId==='counter'||tacticId==='attacking'?14:tacticId==='defensive'?7:10
   return {x:clamp(player.x+direction*(boost+random.next()*4),4,96),y:clamp(player.y+(random.next()-.5)*12,6,94)}
 }

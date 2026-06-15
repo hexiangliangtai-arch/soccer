@@ -48,7 +48,7 @@ function resetKickoff(world:MatchWorldState,team:MatchTeam,reason:'kickoff'|'goa
 }
 
 function createWorld(match:MatchState,allPlayers:Player[],tacticId:TacticId,half:'first'|'second'):MatchWorldState {
-  const players=createAiMatchPlayers(match,allPlayers)
+  const players=createAiMatchPlayers(match,allPlayers,half)
   const goals=match.events.filter((event)=>event.type==='goal')
   const timeSec=half==='first'?0:HALF_SECONDS
   const world:MatchWorldState={
@@ -83,7 +83,7 @@ function captureFrame(world:MatchWorldState,frameOffset:number) {
 }
 
 function leadPassTarget(target:MatchPlayerState,owner:MatchPlayerState,world:MatchWorldState):PitchPosition {
-  const direction=getAttackDirection(owner.team)
+  const direction=getAttackDirection(owner.team,world.half)
   const intent=world.teamIntents[owner.team]?.type
   const lead=intent==='counter'?7:intent==='sideAttack'?4:2.5
   return {
@@ -93,7 +93,7 @@ function leadPassTarget(target:MatchPlayerState,owner:MatchPlayerState,world:Mat
 }
 
 function passType(owner:MatchPlayerState,target:MatchPlayerState,world:MatchWorldState) {
-  const direction=getAttackDirection(owner.team)
+  const direction=getAttackDirection(owner.team,world.half)
   const forward=(target.x-owner.x)*direction
   const intent=world.teamIntents[owner.team]?.type
   if(intent==='sideAttack'&&Math.abs(owner.y-50)>22)return 'cross' as const
@@ -109,11 +109,12 @@ function startPass(world:MatchWorldState,owner:MatchPlayerState,target:MatchPlay
 }
 
 function startShot(world:MatchWorldState,owner:MatchPlayerState,random:RandomSource) {
-  const goal=getGoalPosition(owner.team)
+  const goal=getGoalPosition(owner.team,world.half)
+  const direction=getAttackDirection(owner.team,world.half)
   const accuracy=(owner.attack*.58+owner.technique*.3+owner.mental*.12)/100
   const defensivePressure=owner.team==='away'?(world.tacticId==='defensive'?1.65:world.tacticId==='attacking'?.65:1):1
   const spread=((1-accuracy)*34+5)*defensivePressure
-  const target={x:goal.x+(owner.team==='home'?2:-2),y:50+(random.next()-.5)*spread*2}
+  const target={x:goal.x+direction*2,y:50+(random.next()-.5)*spread*2}
   kickBall(world,owner,target,{mode:'shot',speed:18+owner.attack/15,type:'shoot'})
   owner.decisionCooldown=10
 }
@@ -138,8 +139,8 @@ function decideOwnerAction(world:MatchWorldState,random:RandomSource) {
     return
   }
   const decision=decideBallAction(owner,world,random)
-  if(decision.type==='shoot'&&distance(owner,getGoalPosition(owner.team))>38) {
-    const target=world.players.filter((player)=>player.team===owner.team&&player.playerId!==owner.playerId).sort((a,b)=>distance(a,getGoalPosition(owner.team))-distance(b,getGoalPosition(owner.team)))[0]
+  if(decision.type==='shoot'&&distance(owner,getGoalPosition(owner.team,world.half))>38) {
+    const target=world.players.filter((player)=>player.team===owner.team&&player.playerId!==owner.playerId).sort((a,b)=>distance(a,getGoalPosition(owner.team,world.half))-distance(b,getGoalPosition(owner.team,world.half)))[0]
     if(target)startPass(world,owner,target);else startDribble(world,owner,random)
     return
   }

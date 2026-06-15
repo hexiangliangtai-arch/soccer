@@ -23,7 +23,7 @@ function chooseWeighted(entries:Array<[PlaySequenceType,number]>,random:RandomSo
 
 export function createPlaySequence(world:MatchWorldState,owner:MatchPlayerState,random:RandomSource):PlaySequence|null {
   const tactic:TacticId=owner.team==='home'?world.tacticId:'balanced'
-  const direction=getAttackDirection(owner.team)
+  const direction=getAttackDirection(owner.team,world.half)
   const progress=direction===1?owner.x:100-owner.x
   const configured={...weights[tactic]}
   if(world.counterTeam===owner.team)configured.counter=(configured.counter??0)+2

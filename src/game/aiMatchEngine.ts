@@ -33,7 +33,7 @@ function resetForKickoff(state:AiMatchState,team:MatchTeam) {
 }
 
 function createInitialAiState(match:MatchState,allPlayers:Player[],tacticId:TacticId,half:'first'|'second'):AiMatchState {
-  const players=createAiMatchPlayers(match,allPlayers)
+  const players=createAiMatchPlayers(match,allPlayers,half)
   const existingGoals=match.events.filter((event)=>event.type==='goal')
   const state:AiMatchState={
     matchId:match.id,half,minute:half==='first'?0:45,second:0,stepIndex:0,
@@ -79,8 +79,8 @@ function processAction(state:AiMatchState,random:ReturnType<typeof createSeededR
   owner=playerById(state,state.ball.ownerPlayerId)
   if (!owner) return null
   const ownerTactic=tacticForTeam(owner.team,state.tacticId)
-  if (counterTeam===owner.team&&(ownerTactic==='counter'||(owner.team==='away'&&random.next()<.18))&&distance(owner,getGoalPosition(owner.team))>22) {
-    const start=pointOf(owner);const direction=getAttackDirection(owner.team)
+  if (counterTeam===owner.team&&(ownerTactic==='counter'||(owner.team==='away'&&random.next()<.18))&&distance(owner,getGoalPosition(owner.team,state.half))>22) {
+    const start=pointOf(owner);const direction=getAttackDirection(owner.team,state.half)
     const target={x:clamp(owner.x+direction*(12+random.next()*5),5,95),y:clamp(owner.y+(random.next()-.5)*10,7,93)}
     createAiEvent(state,{type:'counter',team:owner.team,player:owner,position:start,targetPosition:target,result:'success'})
     owner.x=target.x;owner.y=target.y;setBallOwner(state,owner,target)
@@ -124,14 +124,14 @@ function processAction(state:AiMatchState,random:ReturnType<typeof createSeededR
   }
 
   if (decision.type==='shoot') {
-    const start=pointOf(owner);const goal=getGoalPosition(owner.team)
+    const start=pointOf(owner);const goal=getGoalPosition(owner.team,state.half)
     const goalPoint={x:goal.x,y:clamp(44+random.next()*12,42,58)}
     const goalkeeper=state.players.find((player)=>player.team!==owner!.team&&player.role==='GK')
     if (!goalkeeper) throw new Error('GKが見つかりません')
     const homeTactic=tactics.find((item)=>item.id===state.tacticId)??tactics[0]
     const attackMultiplier=owner.team==='home'?homeTactic.attack:1
     const defenseMultiplier=owner.team==='away'?homeTactic.defense:1
-    const shot=resolveShoot(owner,goalkeeper,random,attackMultiplier,defenseMultiplier)
+    const shot=resolveShoot(owner,goalkeeper,random,attackMultiplier,defenseMultiplier,state.half)
     createAiEvent(state,{type:'chance',team:owner.team,player:owner,position:start,targetPosition:start,result:'success'})
     createAiEvent(state,{type:'shoot',team:owner.team,player:owner,position:start,targetPosition:goalPoint,result:'success'})
     if (shot.goal) {

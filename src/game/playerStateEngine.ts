@@ -63,7 +63,7 @@ export function updatePlayerActionStates(world:MatchWorldState) {
         if(player.playerId===defenders[1]?.playerId) {setState(player,'cover',world,{x:(owner.x+player.baseX)/2,y:(owner.y+player.baseY)/2});return}
         setState(player,'mark',world);return
       }
-      const direction=getAttackDirection(player.team)
+      const direction=getAttackDirection(player.team,world.half)
       const intent=world.teamIntents[player.team]?.type
       if(['ST','WG','AM'].includes(player.role)&&intent!=='keepPossession') {
         setState(player,'runIntoSpace',world,{x:clamp(player.baseX+direction*(intent==='counter'?15:8),4,96),y:player.baseY});return
@@ -75,7 +75,7 @@ export function updatePlayerActionStates(world:MatchWorldState) {
 }
 
 export function chooseDribbleDirection(owner:MatchPlayerState,world:MatchWorldState,random:RandomSource) {
-  const direction=getAttackDirection(owner.team)
+  const direction=getAttackDirection(owner.team,world.half)
   const opponents=world.players.filter((player)=>player.team!==owner.team&&distance(player,owner)<12)
   const candidates=[-14,-7,0,7,14].map((lateral)=>{
     const point={x:clamp(owner.x+direction*(5+random.next()*3),3,97),y:clamp(owner.y+lateral,4,96)}
@@ -87,10 +87,11 @@ export function chooseDribbleDirection(owner:MatchPlayerState,world:MatchWorldSt
 }
 
 export function goalkeeperTarget(player:MatchPlayerState,world:MatchWorldState):PitchPosition {
-  const ownGoal=getGoalPosition(player.team==='home'?'away':'home')
+  const ownGoal=getGoalPosition(player.team==='home'?'away':'home',world.half)
+  const direction=getAttackDirection(player.team,world.half)
   const shotThreat=world.ball.mode==='shot'&&world.ball.lastTouchTeam!==player.team
   return {
-    x:player.team==='home'?clamp(6+(world.ball.x/100)*5,5,14):clamp(94-(100-world.ball.x)/100*5,86,95),
+    x:clamp(ownGoal.x+direction*(6+Math.abs(world.ball.x-ownGoal.x)/100*5),5,95),
     y:clamp(50+(world.ball.y-50)*(shotThreat?.65:.24),36,64),
   }
 }

@@ -1,5 +1,5 @@
 import type { MatchPlayerState } from '../types/aiMatch'
-import type { MatchTeam, PitchPosition } from '../types/game'
+import type { MatchHalf, MatchTeam, PitchPosition } from '../types/game'
 import type { RandomSource } from './random'
 
 export function clamp(value: number,min=0,max=100) {
@@ -25,12 +25,17 @@ export function findNearestPlayer(players: MatchPlayerState[],point: PitchPositi
   return players.filter(filter).sort((a,b)=>distance(a,point)-distance(b,point))[0]
 }
 
-export function getGoalPosition(team: MatchTeam): PitchPosition {
-  return team==='home'?{x:100,y:50}:{x:0,y:50}
+export function getAttackDirection(team: MatchTeam,half:Exclude<MatchHalf,'fullTime'>='first'): 1|-1 {
+  const firstHalfDirection=team==='home'?1:-1
+  return half==='first'?firstHalfDirection:(-firstHalfDirection as 1|-1)
 }
 
-export function getAttackDirection(team: MatchTeam): 1|-1 {
-  return team==='home'?1:-1
+export function getGoalPosition(team: MatchTeam,half:Exclude<MatchHalf,'fullTime'>='first'): PitchPosition {
+  return {x:getAttackDirection(team,half)===1?100:0,y:50}
+}
+
+export function getDefendingGoalPosition(team:MatchTeam,half:Exclude<MatchHalf,'fullTime'>='first'):PitchPosition {
+  return {x:getAttackDirection(team,half)===1?0:100,y:50}
 }
 
 export function mirrorPointForAway(point: PitchPosition): PitchPosition {

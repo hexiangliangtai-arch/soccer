@@ -2,7 +2,7 @@ import type { BallState, MatchPlayerState, MatchWorldState, PlayerActionState } 
 import type { MatchTeam, PitchPosition } from '../types/game'
 import type { PlayAction, PlayActionResult, PlayActionType } from '../types/playSequence'
 import { createAiEvent } from './aiEventFactory'
-import { distance, pointOf } from './pitchMath'
+import { distance, getGoalPosition, pointOf } from './pitchMath'
 
 export interface WorldSnapshot {
   ball:BallState
@@ -69,7 +69,8 @@ export function detectWorldEvents(world:MatchWorldState,before:WorldSnapshot) {
   if(before.ball.mode==='owned'&&world.ball.mode==='shot') {
     const shooter=player(world,world.ball.shooterPlayerId)??previousOwner
     emit(world,{type:'chance',team:shooter?.team??world.possessionTeam,player:shooter,position:world.ball.kickFrom,targetPosition:world.ball.kickFrom,result:'success'})
-    const event=emit(world,{type:'shoot',team:shooter?.team??world.possessionTeam,player:shooter,position:world.ball.kickFrom,targetPosition:{x:world.ball.lastTouchTeam==='home'?100:0,y:world.ball.y},result:'success'})
+    const shootingTeam=shooter?.team??world.ball.lastTouchTeam??world.possessionTeam
+    const event=emit(world,{type:'shoot',team:shootingTeam,player:shooter,position:world.ball.kickFrom,targetPosition:{x:getGoalPosition(shootingTeam,world.half).x,y:world.ball.y},result:'success'})
     beginAction(world,'shoot',shooter,undefined,event.id,world.ball.kickFrom??{x:world.ball.x,y:world.ball.y})
   }
 

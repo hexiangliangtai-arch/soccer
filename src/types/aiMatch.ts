@@ -28,6 +28,30 @@ export type PlayerActionState =
 
 export type BallMode = 'owned' | 'pass' | 'shot' | 'deflection' | 'loose' | 'saved' | 'outOfPlay'
 
+export interface PlayerZone {
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+  centerX: number
+  centerY: number
+}
+
+export type TacticalPhase =
+  | 'normal'
+  | 'attack'
+  | 'defense'
+  | 'deepDefense'
+  | 'counter'
+  | 'highPress'
+  | 'setPieceAttack'
+  | 'setPieceDefense'
+  | 'allOutAttack'
+  | 'protectLead'
+  | 'looseBall'
+
+export type ZoneFlexLevel = 'strict' | 'normal' | 'wide' | 'free'
+
 export interface MatchPlayerState {
   playerId: string
   name: string
@@ -64,6 +88,12 @@ export interface MatchPlayerState {
   actionStartedAt?: number
   actionStartPosition?: PitchPosition
   reactionCooldown?: number
+  baseZone?: PlayerZone
+  dynamicZone?: PlayerZone
+  emergencyZone?: PlayerZone
+  currentZone?: PlayerZone
+  tacticalPhase?: TacticalPhase
+  zoneFlex?: ZoneFlexLevel
 }
 
 export interface BallState extends PitchPosition {
